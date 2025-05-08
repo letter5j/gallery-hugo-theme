@@ -1,24 +1,25 @@
 {{ $gallery := "" }}
-{{ $images :=  where (.Resources.ByType "image") "Params.hidden" "ne" true }}
-{{ if gt (len $images) 0 }}
-  {{ $covers := where (.Resources.ByType "image") "Params.cover" "eq" true }}
-  {{ $cover := "" }}
-  {{ if ge (len $covers) 0 }}
-    {{ $cover = index $covers 0 }}
-  {{ end }}
-  {{ $featured := $cover | default ((.Resources.ByType "image").GetMatch (.Params.featured_image | default "*feature*")) | default (index $images 0) }}
-  {{ $thumbnail := $featured.Filter (slice images.AutoOrient (images.Process "fit 600x600")) }}
-  {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
-  {{ $imageCount := 0 }}
-  {{ $albumCount := 0 }}
-  {{ if .IsPage }}
-    {{ $imageCount = len $images }}
-  {{ else }}
-    {{ range where .RegularPagesRecursive "Params.private" "ne" true }}
-      {{ $albumCount = add $albumCount 1 }}
-      {{ $imageCount = add $imageCount (len (where (.Resources.ByType "image") "Params.hidden" "ne" true)) }}
+{{ $images := slice }}
+{{ $page := . }} <!-- Capture the page context -->
+{{ with .Params.images }}
+  {{ range . }}
+    {{ $img := resources.GetRemote . }}
+    {{ if $img }}
+      {{ $filename := path.Base . }}
+      {{ $parentDir := $page.File.Dir }}
+      {{ $img := $img.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
+      {{ $images = $images | append $img }}
     {{ end }}
   {{ end }}
+{{ end }}
+{{ if gt (len $images) 0 }}
+  {{ $covers := slice (index $images 0) }}
+  {{ $cover := index $covers 0 }}
+  {{ $featured := $cover }}
+  {{ $thumbnail := $featured.Process "fit 600x600" }}
+  {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
+  {{ $imageCount := len $images }}
+  {{ $albumCount := 0 }}
   {{ $gallery = dict
     "page" $
     "images" $images
