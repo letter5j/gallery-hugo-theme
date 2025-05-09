@@ -12,10 +12,21 @@
     {{ end }}
   {{ end }}
 {{ end }}
+
+{{ $featured := nil }}
+{{ with .Params.featured_image }}
+  {{ $featuredRemote := resources.GetRemote . }}
+  {{ if $featuredRemote }}
+    {{ $filename := path.Base . }}
+    {{ $parentDir := $page.File.Dir }}
+    {{ $featured = $featuredRemote.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
+  {{ end }}
+{{ end }}
+
 {{ if gt (len $images) 0 }}
   {{ $covers := slice (index $images 0) }}
   {{ $cover := index $covers 0 }}
-  {{ $featured := $cover }}
+  {{ $featured := $featured | default $cover }}
   {{ $thumbnail := $featured.Process "fit 600x600" }}
   {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
   {{ $imageCount := len $images }}
