@@ -3,9 +3,10 @@
 {{ $page := . }} <!-- Capture the page context -->
 {{ with .Params.images }}
   {{ range . }}
-    {{ $img := resources.GetRemote . }}
+    {{ $src := .src | default . }}
+    {{ $img := resources.GetRemote $src }}
     {{ if $img }}
-      {{ $filename := path.Base . }}
+      {{ $filename := path.Base $src }}
       {{ $parentDir := $page.File.Dir }}
       {{ $img := $img.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
       {{ $images = $images | append $img }}
@@ -13,17 +14,18 @@
   {{ end }}
 {{ end }}
 
-{{ $featured := nil }}
+{{ $featured := "nil" }}
 {{ with .Params.featured_image }}
   {{ $featuredRemote := resources.GetRemote . }}
   {{ if $featuredRemote }}
     {{ $filename := path.Base . }}
     {{ $parentDir := $page.File.Dir }}
-    {{ $featured = $featuredRemote.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
+    {{ $featured = $featuredRemote.Content | resources.FromString (printf "%s%s" $parentDir $filename) }}
   {{ end }}
 {{ end }}
 
 {{ if gt (len $images) 0 }}
+
   {{ $covers := slice (index $images 0) }}
   {{ $cover := index $covers 0 }}
   {{ $featured := $featured | default $cover }}

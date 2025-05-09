@@ -2,14 +2,57 @@
 {{ if $gallery }}
 <section class="gallery">
   <div id="gallery" style="visibility: hidden; height: 1px; overflow: hidden">
-    {{ range $image := $gallery.images }}
-      {{ $thumbnail := $image.Process "fit 600x600" }}
-      {{ $full := $image.Process "fit 1600x1600" }}
+    {{ $images := slice }}
+    {{ $originalPageImages := .Params.images }}
+    {{ range $index, $image := $gallery.images }}
+      {{ $originalPageImage := index $originalPageImages $index }}
+      {{ $originalPageImageParams := $originalPageImage.params }}
+      {{ if ne $originalPageImageParams.hidden true }}
+        {{ $src := $originalPageImage.src | default . }}
+        {{ $filename := path.Base $src }}
+        {{ $imageTitle := $filename }}
+        {{ $date := "" }}
+        {{ with $image.Exif }}
+          {{ $date = .Date }}
+          {{ with .Tags.ImageDescription }}
+            {{ $title = . }}
+          {{ end }}
+        {{ end }}
+        {{ if ne (default $filename $originalPageImage.title) $filename }}
+          {{ $imageTitle = $originalPageImage.title }}
+        {{ end }}
+        {{ if $image.Params.Date }}
+          {{ $date = time $image.Params.Date }}
+        {{ end }}
+        {{ $images = $images | append (dict
+          "Name" $filename
+          "Title" $imageTitle
+          "Date" $date
+          "image" $image
+          "Params" $originalPageImageParams
+          "Index" $index
+          "OriginalParams" $originalPageImageParams
+          )
+        }}
+      {{ end }}
+    {{ end }}
+    {{ $publishResources := default true .Params.build.publishResources }}
+    {{ range $image := $images }}
+      {{ $thumbnail := $image.image.Process "fit 600x600" }}
+      {{ $full := $image.image.Process "fit 1600x1600" }}
       {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
-      <a class="gallery-item" href="{{ $full.RelPermalink }}" data-pswp-src="{{ $full.RelPermalink }}" data-pswp-width="{{ $full.Width }}" data-pswp-height="{{ $full.Height }}" title="{{ .Title }}" itemscope itemtype="https://schema.org/ImageObject" style="aspect-ratio: {{ $thumbnail.Width }} / {{ $thumbnail.Height }}">
+
+      <a class="gallery-item" href="{{ $full.RelPermalink }}" data-pswp-src="{{ $full.RelPermalink }}" data-pswp-width="{{ $full.Width }}" data-pswp-height="{{ $full.Height }}" data-pswp-target="{{ .Name | urlize }}" title="{{ .Title }}" itemscope itemtype="https://schema.org/ImageObject" style="aspect-ratio: {{ $thumbnail.Width }} / {{ $thumbnail.Height }}">
         <figure style="background-color: {{ $color }}; aspect-ratio: {{ $thumbnail.Width }} / {{ $thumbnail.Height }}">
           <img class="lazyload" width="{{ $thumbnail.Width }}" height="{{ $thumbnail.Height }}" data-src="{{ $thumbnail.RelPermalink }}" alt="{{ .Title }}" />
         </figure>
+        <meta itemprop="contentUrl" content="{{ if $publishResources }}{{ $image.RelPermalink }}{{ else }}{{ $full.RelPermalink }}{{ end }}" />
+        {{ with site.Params.Author }}
+          <span itemprop="creator" itemtype="https://schema.org/Person" itemscope>
+            <meta itemprop="name" content="{{ site.Params.Author.name }}" />
+          </span>
+        {{ end }}
+
       </a>
     {{ end }}
   </div>
