@@ -5,7 +5,19 @@ import * as params from "@params";
 
 const gallery = document.getElementById("gallery");
 
+// HDR 能力檢測
+const isHdrCapable = () => {
+  return window.matchMedia && 
+         window.matchMedia('(dynamic-range: high)').matches &&
+         window.matchMedia('(color-gamut: p3)').matches;
+};
+
 if (gallery) {
+  // 如果支援 HDR，添加 CSS 類別
+  if (isHdrCapable()) {
+    document.body.classList.add('hdr-capable');
+  }
+
   const lightbox = new PhotoSwipeLightbox({
     gallery,
     children: ".gallery-item",
@@ -18,6 +30,25 @@ if (gallery) {
     arrowPrevTitle: params.arrowPrevTitle,
     arrowNextTitle: params.arrowNextTitle,
     errorMsg: params.errorMsg,
+    
+    // 自訂圖片載入邏輯，支援 HDR 切換
+    dataSource: {
+      getItemData: (itemEl) => {
+        const data = {
+          src: itemEl.dataset.pswpSrc,
+          width: parseInt(itemEl.dataset.pswpWidth, 10),
+          height: parseInt(itemEl.dataset.pswpHeight, 10),
+          element: itemEl,
+        };
+        
+        // 如果支援 HDR 且有 HDR 版本，使用 HDR
+        if (isHdrCapable() && itemEl.dataset.pswpHdr) {
+          data.src = itemEl.dataset.pswpHdr;
+        }
+        
+        return data;
+      }
+    }
   });
 
   if (params.enableDownload) {

@@ -1,40 +1,90 @@
 {{ $gallery := "" }}
 {{ $images := slice }}
+{{ $imageMetadata := slice }}
 {{ $page := . }} <!-- Capture the page context -->
+
+{{ $useExternalImages := .Params.use_external_images | default false }}
+
 {{ with .Params.images }}
-  {{ range . }}
-    {{ $src := .src | default . }}
-    {{ $img := resources.GetRemote $src }}
-    {{ if $img }}
-      {{ $filename := path.Base $src }}
-      {{ $parentDir := $page.File.Dir }}
-      {{ $img := $img.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
-      {{ $images = $images | append $img }}
+  {{ range $index, $imgData := . }}
+    {{ $src := $imgData.src | default $imgData }}
+    
+    {{ if $useExternalImages }}
+      <!-- 外部圖片模式：只保留 metadata，不下載圖片 -->
+      {{ $imageMetadata = $imageMetadata | append (dict
+        "src" $src
+        "thumbnail" ($imgData.thumbnail | default $src)
+        "width" ($imgData.width | default 0)
+        "height" ($imgData.height | default 0)
+        "title" ($imgData.title | default (path.Base $src))
+        "hdr" ($imgData.hdr | default false)
+        "hdrSrc" ($imgData.hdr_src | default "")
+        "index" $index
+        "params" ($imgData.params | default dict)
+      ) }}
+    {{ else }}
+      <!-- 原有模式：下載並處理圖片 -->
+      {{ $img := resources.GetRemote $src }}
+      {{ if $img }}
+        {{ $filename := path.Base $src }}
+        {{ $parentDir := $page.File.Dir }}
+        {{ $img := $img.Content | resources.FromString (printf "%s/%s" $parentDir $filename) }}
+        {{ $images = $images | append $img }}
+        {{ $imageMetadata = $imageMetadata | append (dict
+          "src" $src
+          "thumbnail" ($imgData.thumbnail | default "")
+          "width" ($imgData.width | default 0)
+          "height" ($imgData.height | default 0)
+          "title" ($imgData.title | default (path.Base $src))
+          "hdr" ($imgData.hdr | default false)
+          "hdrSrc" ($imgData.hdr_src | default "")
+          "index" $index
+          "params" ($imgData.params | default dict)
+        ) }}
+      {{ end }}
     {{ end }}
   {{ end }}
 {{ end }}
 
 {{ $featured := "nil" }}
+{{ $featuredThumbnail := "" }}
+{{ $featuredColor := "transparent" }}
+
 {{ with .Params.featured_image }}
-  {{ $featuredRemote := resources.GetRemote . }}
-  {{ if $featuredRemote }}
-    {{ $filename := path.Base . }}
-    {{ $parentDir := $page.File.Dir }}
-    {{ $featured = $featuredRemote.Content | resources.FromString (printf "%s%s" $parentDir $filename) }}
+  {{ if $useExternalImages }}
+    {{ $featured = . }}
+    {{ $featuredThumbnail = $.Params.featured_thumbnail | default . }}
+  {{ else }}
+    {{ $featuredRemote := resources.GetRemote . }}
+    {{ if $featuredRemote }}
+      {{ $filename := path.Base . }}
+      {{ $parentDir := $page.File.Dir }}
+      {{ $featured = $featuredRemote.Content | resources.FromString (printf "%s%s" $parentDir $filename) }}
+    {{ end }}
   {{ end }}
 {{ end }}
 
 {{ $isSection := .IsSection | default false }}
 {{ $hasFeatured := ne $featured "nil" }}
 
-{{ if or (gt (len $images) 0) (and $isSection $hasFeatured) }}
-  {{ $cover := cond $hasFeatured $featured (index $images 0) }}
-  {{ $thumbnail := $cover.Process "fit 600x600" }}
-  {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
-  {{ $imageCount := len $images }}
+{{ if or (gt (len $images) 0) (gt (len $imageMetadata) 0) (and $isSection $hasFeatured) }}
+  {{ $thumbnail := "" }}
+  {{ $color := "transparent" }}
+  {{ $cover := "" }}
+  
+  {{ if $useExternalImages }}
+    {{ $cover = $featuredThumbnail | default (index $imageMetadata 0).thumbnail | default (index $imageMetadata 0).src }}
+    {{ $color = .Params.featured_color | default "transparent" }}
+  {{ else }}
+    {{ $cover = cond $hasFeatured $featured (index $images 0) }}
+    {{ $thumbnail = $cover.Process "fit 600x600" }}
+    {{ $color = index $thumbnail.Colors 0 | default "transparent" }}
+  {{ end }}
+  
+  {{ $imageCount := len $imageMetadata }}
   {{ $albumCount := 0 }}
   {{ if .IsPage }}
-    {{ $imageCount = len $images }}
+    {{ $imageCount = len $imageMetadata }}
   {{ else }}
     {{ $imageCount = 0 }}
     {{ $albumCount = 0 }}
@@ -47,10 +97,13 @@
   {{ $gallery = dict
     "page" $
     "images" $images
+    "imageMetadata" $imageMetadata
     "thumbnail" $thumbnail
+    "thumbnailUrl" $cover
     "color" $color
     "albumCount" $albumCount
     "imageCount" $imageCount
+    "useExternalImages" $useExternalImages
   }}
 {{ end }}
 {{ return $gallery }}
