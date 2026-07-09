@@ -1,36 +1,44 @@
-{{ $gallery := partial "get-gallery.html" . }}
-{{ if $gallery }}
-<section class="gallery">
-  <div id="gallery" style="visibility: hidden; height: 1px; overflow: hidden">
-    {{ $useExternalImages := $gallery.useExternalImages }}
-    {{ $originalPageImages := .Params.images }}
-    
-    {{ if $useExternalImages }}
-      <!-- 外部圖片模式 -->
-      {{ range $index, $imgMeta := $gallery.imageMetadata }}
-        {{ $params := $imgMeta.params }}
+{{ $useExternalImages := .Params.use_external_images | default false }}
+
+{{ if $useExternalImages }}
+  <!-- 外部圖片模式：直接使用頁面的 .Params.images -->
+  <section class="gallery">
+    <div id="gallery" style="visibility: hidden; height: 1px; overflow: hidden">
+      {{ range $index, $imgData := .Params.images }}
+        {{ $params := $imgData.params | default dict }}
         {{ if ne $params.hidden true }}
-          {{ $thumbnailSrc := $imgMeta.thumbnail }}
-          {{ $fullSrc := $imgMeta.src }}
-          {{ $width := $imgMeta.width | default 600 }}
-          {{ $height := $imgMeta.height | default 400 }}
+          {{ $src := $imgData.src | default $imgData }}
+          {{ $thumbnailSrc := $imgData.thumbnail | default $src }}
+          {{ $fullSrc := $src }}
+          {{ $hdrSrc := $imgData.hdr_src | default "" }}
+          {{ $width := $imgData.width | default 600 }}
+          {{ $height := $imgData.height | default 400 }}
+          {{ $title := $imgData.title | default (path.Base $src) }}
           {{ $aspectRatio := div (float $width) (float $height) }}
           
+          {{ $cleanTitle := $title | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+          {{ $cleanThumbnailSrc := $thumbnailSrc | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+          {{ $cleanFullSrc := $fullSrc | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+          {{ $cleanHdrSrc := "" }}
+          {{ if $hdrSrc }}
+            {{ $cleanHdrSrc = $hdrSrc | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+          {{ end }}
+          
           <a class="gallery-item" 
-             href="{{ $fullSrc }}" 
-             data-pswp-src="{{ $fullSrc }}" 
-             {{ if $imgMeta.hdrSrc }}data-pswp-hdr="{{ $imgMeta.hdrSrc }}"{{ end }}
+             href="{{ $cleanFullSrc }}" 
+             data-pswp-src="{{ $cleanFullSrc }}" 
+             {{ if $cleanHdrSrc }}data-pswp-hdr="{{ $cleanHdrSrc }}"{{ end }}
              data-pswp-width="{{ $width }}" 
              data-pswp-height="{{ $height }}" 
-             data-pswp-target="{{ $imgMeta.title | urlize }}" 
-             title="{{ $imgMeta.title }}" 
+             data-pswp-target="{{ $cleanTitle | urlize }}" 
+             title="{{ $cleanTitle }}" 
              itemscope 
              itemtype="https://schema.org/ImageObject" 
              style="aspect-ratio: {{ $aspectRatio }}">
             <figure style="background-color: transparent; aspect-ratio: {{ $aspectRatio }}">
-              <img class="lazyload" width="{{ $width }}" height="{{ $height }}" data-src="{{ $thumbnailSrc }}" alt="{{ $imgMeta.title }}" />
+              <img class="lazyload" width="{{ $width }}" height="{{ $height }}" data-src="{{ $cleanThumbnailSrc }}" alt="{{ $cleanTitle }}" />
             </figure>
-            <meta itemprop="contentUrl" content="{{ $fullSrc }}" />
+            <meta itemprop="contentUrl" content="{{ $cleanFullSrc }}" />
             {{ with site.Params.Author }}
               <span itemprop="creator" itemtype="https://schema.org/Person" itemscope>
                 <meta itemprop="name" content="{{ site.Params.Author.name }}" />
@@ -39,8 +47,15 @@
           </a>
         {{ end }}
       {{ end }}
-    {{ else }}
-      <!-- 原有模式：本地處理圖片 -->
+    </div>
+  </section>
+{{ else }}
+  <!-- 原有模式：使用 get-gallery.html 處理圖片 -->
+  {{ $gallery := partial "get-gallery.html" . }}
+  {{ if $gallery }}
+  <section class="gallery">
+    <div id="gallery" style="visibility: hidden; height: 1px; overflow: hidden">
+      {{ $originalPageImages := .Params.images }}
       {{ $images := slice }}
       {{ range $index, $image := $gallery.images }}
         {{ $originalPageImage := index $originalPageImages $index }}
@@ -105,7 +120,7 @@
           {{ end }}
         </a>
       {{ end }}
-    {{ end }}
-  </div>
-</section>
+    </div>
+  </section>
+  {{ end }}
 {{ end }}

@@ -1,22 +1,55 @@
-{{ $gallery := partial "get-gallery.html" . }}
-{{ with $gallery }}
-  <a class="card" href="{{ .page.RelPermalink }}" title="{{ .page.Title }}">
-    <figure style="background-color: {{ .color }}">
-      {{ if .useExternalImages }}
-        <img class="lazyload" width="600" height="400" data-src="{{ .thumbnailUrl }}" alt="{{ .page.Title }}" />
-      {{ else }}
+{{ $useExternalImages := .Params.use_external_images | default false }}
+{{ if $useExternalImages }}
+  <!-- 外部圖片模式的卡片 -->
+  {{ with .Params.featured_thumbnail }}
+    {{ $cleanThumbnail := . | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+    <a class="card" href="{{ $.RelPermalink }}" title="{{ $.Title }}">
+      <figure style="background-color: {{ $.Params.featured_color | default "#1a1a2e" }}">
+        <img class="lazyload" width="600" height="400" data-src="{{ $cleanThumbnail }}" alt="{{ $.Title }}" />
+      </figure>
+      <div>
+        <h2>{{ $.Title }}</h2>
+        <p>
+          {{ $imageCount := len $.Params.images }}
+          {{ T "photoCount" ($imageCount | lang.FormatNumber 0) }}
+        </p>
+      </div>
+    </a>
+  {{ else }}
+    {{ with index .Params.images 0 }}
+      {{ $cleanThumbnail := .thumbnail | default .src | replaceRE `^\s+` `` | replaceRE `\s+$` `` }}
+      <a class="card" href="{{ $.RelPermalink }}" title="{{ $.Title }}">
+        <figure style="background-color: {{ $.Params.featured_color | default "#1a1a2e" }}">
+          <img class="lazyload" width="600" height="400" data-src="{{ $cleanThumbnail }}" alt="{{ $.Title }}" />
+        </figure>
+        <div>
+          <h2>{{ $.Title }}</h2>
+          <p>
+            {{ $imageCount := len $.Params.images }}
+            {{ T "photoCount" ($imageCount | lang.FormatNumber 0) }}
+          </p>
+        </div>
+      </a>
+    {{ end }}
+  {{ end }}
+{{ else }}
+  <!-- 原有模式的卡片 -->
+  {{ $gallery := partial "get-gallery.html" . }}
+  {{ with $gallery }}
+    <a class="card" href="{{ .page.RelPermalink }}" title="{{ .page.Title }}">
+      <figure style="background-color: {{ .color }}">
         <img class="lazyload" width="{{ .thumbnail.Width }}" height="{{ .thumbnail.Height }}" data-src="{{ .thumbnail.RelPermalink }}" alt="{{ .page.Title }}" />
-      {{ end }}
-    </figure>
-    <div>
-      <h2>{{ .page.Title }}</h2>
-      <p>
-        {{ if gt .albumCount 0 }}
-          {{ T "albumCount" (dict "count" (.albumCount | lang.FormatNumber 0) "photoCount" (.imageCount | lang.FormatNumber 0 | lang.Translate "photoCount")) }}
-        {{ else }}
-          {{ T "photoCount" (.imageCount | lang.FormatNumber 0) }}
-        {{ end }}
-      </p>
-    </div>
-  </a>
+      </figure>
+      <div>
+        <h2>{{ .page.Title }}</h2>
+        <p>
+          {{ if gt .albumCount 0 }}
+            {{ T "albumCount" (dict "count" (.albumCount | lang.FormatNumber 0) "photoCount" (.imageCount | lang.FormatNumber 0 | lang.Translate "photoCount")) }}
+          {{ else }}
+            {{ T "photoCount" (.imageCount | lang.FormatNumber 0) }}
+          {{ end }}
+        </p>
+      </div>
+    </a>
+  {{ end }}
 {{ end }}
